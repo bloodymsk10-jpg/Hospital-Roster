@@ -172,10 +172,6 @@
             <div id="master-page" class="hidden">
                 <div class="bg-white p-8 rounded-xl shadow-lg">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-4">👨‍⚕️ DATABASE & ALL DOCTOR SHEET</h2>
-                    <button onclick="printDoctorList()" 
-class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold mb-4 no-print">
-🖨️ Doctor List Print
-</button>
                     <div class="bg-emerald-50 p-4 rounded-lg mb-8 border border-emerald-200">
                         <h3 class="font-bold mb-4 text-emerald-800 text-lg">➕ Add New Doctor</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -336,55 +332,7 @@ confirmButtonColor:'#004d40'
 
         // --- APP LOGIC FUNCTIONS ---
         window.switchPage = (page) => {
-            window.printDoctorList = function(){
-
-const hospitalName = document.getElementById('hospitalHeadline').value || "হাসপাতালের নাম";
-
-const win = window.open('', '', 'width=900,height=700');
-
-win.document.write(`
-<html>
-<head>
-<title>Doctor List</title>
-
-<style>
-
-body{
-font-family:'Hind Siliguri',sans-serif;
-padding:20px;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th,td{
-border:1px solid black;
-padding:8px;
-text-align:center;
-font-weight:bold;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h2 style="text-align:center;">Doctor Database List</h2>
-
-${printContent}
-
-</body>
-</html>
-`);
-
-win.document.close();
-win.print();
-
-}
-            document.getElementById('roster-page').classList.toggle('hidden', page !== 'roster');
+                     document.getElementById('roster-page').classList.toggle('hidden', page !== 'roster');
             document.getElementById('master-page').classList.toggle('hidden', page !== 'master');
         };
 
