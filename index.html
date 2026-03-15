@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Roster Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        
+        body { font-family: 'Hind Siliguri', sans-serif; background-color: #f3f4f6; }
+        .day-tab-btn { font-size: 1.5rem !important; padding: 12px 20px !important; margin: 10px !important; border-width: 2px !important; border-radius: 10px !important; min-width: 100px; transition: all 0.3s ease; }
+        #displayHeadline { font-size: 3.5rem !important; line-height: 1.2; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
+        
+        .search-container { position: relative; }
+        #customSuggestionList { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .suggestion-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 1.1rem; font-weight: 600; }
+        .suggestion-item:hover { background-color: #f0fdf4; }
+        
+        .col-sl { width: 40px; }
+        .col-name { width: auto; } 
+        .col-dept { width: 20%; }
+        .col-room { width: 5%; }
+        .col-time { width: 15%; }
+        .col-status { width: 10%; }
+        .col-unit { width: 10%; }
+
+        .editable-input { border: 1px transparent; background: transparent; text-align: center; width: 100%; border-radius: 4px; transition: all 0.2s; padding: 4px; }
+        .editable-input:hover { border: 1px solid #cbd5e1; background: white; }
+        .editable-input:focus { border: 1px solid #0d7261; background: white; outline: none; }
+
+        .roster-cell-text { font-size: 1.0rem; font-weight: 700; color: #111; }
+
+       @media print {
+            @page { size: portrait; margin: 5mm; }
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            .print-area { width: 100% !important; border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid black !important; }
+            th, td { border: 1.5px solid black !important; padding: 4px 2px !important; line-height: 1.0; white-space: nowrap !important; overflow: hidden !important; text-overflow: clip; vertical-align: middle; }
+            input, select, textarea, .editable-input { border: none !important; outline: none !important; background: transparent !important; box-shadow: none !important; appearance: none; -webkit-appearance: none; width: 100%; text-align: inherit; font-family: inherit; font-size: inherit; font-weight: bold !important; color: black !important; margin: 0 !important; padding: 0 !important; }
+            .shrink-text td, .shrink-text th, .shrink-text .roster-cell-text { font-size: 0.95rem !important; padding: 3px 1px !important; }
+            .shrink-text-more td, .shrink-text-more th, .shrink-text-more .roster-cell-text { font-size: 0.82rem !important; padding: 2px 1px !important; }
+            #displayHeadline { font-size: 2.5rem !important; margin-bottom: 5px !important; color: black !important; }
+            .date-row { border: 1px solid black !important; background-color: transparent !important; font-size: 1.3rem !important; padding: 4px 15px !important; margin-bottom: 0.5px !important; border-radius: 0 !important; display: inline-flex !important; color: black !important; }
+            .status-yes, .status-no, .status-pending { background: transparent !important; color: black !important; font-weight: bold !important; border: none !important; }
+        }
+        .active-tab { background-color: #004d40 !important; color: white !important; border-color: #004d40 !important; }
+        .status-yes { background-color: #10b981; color: white; }
+        .status-no { background-color: #ef4444; color: white; }
+        .status-pending { background-color: #e5e7eb; color: #374151; }
+        .date-row { background-color: #f8fafc; border: 2px solid #004d40; padding: 8px 30px; border-radius: 50px; font-weight: 700; color: #004d40; font-size: 1.3rem; display: inline-flex; align-items: center; justify-content: center; }
+
+        /* Login Screen CSS */
+        .login-overlay { position: fixed; inset: 0; background: #004d40; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+
+.swal2-popup{
+    font-family:'Hind Siliguri',sans-serif!important;
+    font-size:1.2rem!important;
+    border-radius:18px!important;
+}
+
+.swal2-title{
+    color:#004d40!important;
+}
+
+.swal2-confirm{
+    font-weight:bold!important;
+}
+    </style>
+    
+</head>
+<body class="p-2 md:p-5">
+
+    <div id="loginSection" class="login-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96 text-center">
+            <h2 id="authTitle" class="text-3xl font-bold mb-6 text-emerald-900">🏥 Roster Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-emerald-500">
+            <input type="password" id="loginPassword" placeholder="Password" class="w-full p-3 border rounded-lg mb-6 outline-none focus:ring-2 ring-emerald-500">
+            
+            <button id="authBtn" class="w-full bg-emerald-700 text-white p-3 rounded-lg font-bold text-lg hover:bg-emerald-800 transition">Login</button>
+            
+            <p id="loginError" class="text-red-500 text-sm mt-4 hidden font-bold"></p>
+            
+            <div class="mt-6 pt-4 border-t border-gray-100">
+                <p id="authSwitchText" class="text-gray-600">নতুন অ্যাকাউন্ট খুলতে চান? 
+                    <button id="toggleAuth" class="text-emerald-700 font-bold hover:underline">Register Now</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="appContent" class="hidden">
+        <nav class="max-w-7xl mx-auto bg-[#004d40] text-white p-4 rounded-xl shadow-lg mb-6 flex flex-wrap justify-between items-center no-print gap-4">
+            <div class="text-3xl font-bold flex items-center gap-2">🏥 Roster Manager</div>
+            <div class="flex flex-wrap gap-2 items-center">
+                <button onclick="window.print()" class="bg-emerald-600 hover:bg-blue-700 px-3 py-2 rounded text-lg font-bold transition">🖨️ Print</button>
+                <span class="mx-2 opacity-30 hidden md:block">|</span> 
+                <button onclick="switchPage('roster')" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-lg font-bold"> 📅 ডিউটি রোস্টার</button>
+                <button onclick="switchPage('master')" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-lg font-bold"> 👨‍⚕️ DATABASE</button>
+                <span class="mx-2 opacity-30 hidden md:block">|</span> 
+                <button id="exportBtn" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-lg font-bold transition">📤 Export</button>
+                <label class="bg-orange-600 hover:bg-orange-700 px-3 py-2 rounded text-lg font-bold transition cursor-pointer">
+                    📥 Import<input type="file" id="importFile" class="hidden" accept=".json">
+                </label>
+                <span class="mx-2 opacity-30 hidden md:block">|</span> 
+                <button onclick="window.logout()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-lg font-bold">Logout</button>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto">
+            <div id="roster-page">
+                <div class="bg-white p-6 rounded-xl shadow-md no-print mb-6 border-l-8 border-emerald-600">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="font-bold text-gray-700">হাসপাতালের নাম:</label>
+                            <input type="text" id="hospitalHeadline" placeholder="হাসপাতালের নাম লিখুন" class="border p-3 rounded-lg text-lg outline-none">
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="font-bold text-gray-700">তারিখ নির্বাচন:</label>
+                            <input type="date" id="rosterDate" class="border p-3 rounded-lg text-lg outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 md:p-8 rounded-xl shadow-lg print-area">
+                    <div class="flex flex-col items-center text-center mb-6">
+                        <h1 id="displayHeadline" class="font-black text-gray-900 uppercase mb-4 tracking-tight"></h1>
+                        <div class="date-row shadow-sm">
+                            <span>তারিখ: <span id="displayDateBN">...</span></span>
+                            <span class="mx-4 opacity-30">|</span>
+                            <span>দিন: <span id="displayDayBN">...</span></span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center flex-wrap gap-2 mb-8 no-print" id="dayTabs"></div>
+
+                    <div class="bg-blue-50 p-6 rounded-xl mb-8 no-print border border-blue-100">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="search-container">
+                                <input type="text" id="doctorSearchInput" autocomplete="off" placeholder="ডাক্তারের নাম..." class="w-full p-3 border rounded-lg bg-white">
+                                <div id="customSuggestionList"></div>
+                            </div>
+                            <input type="text" id="dutyRoom" placeholder="রুম নং" class="p-3 border rounded-lg">
+                            <input type="text" id="dutyTime" placeholder="সময়" class="p-3 border rounded-lg">
+                            <button id="addRosterBtn" class="bg-blue-700 text-white p-3 rounded-lg font-bold text-lg">➕ Add</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="rosterTable">
+                            <thead>
+                                <tr class="bg-gray-800 text-white">
+                                    <th class="p-2 col-sl text-center">নং</th>
+                                    <th class="p-2 col-name text-center">ডাক্তারের নাম</th>
+                                    <th class="p-2 col-dept text-center">বিভাগ</th>
+                                    <th class="p-2 col-room text-center">রুম</th>
+                                    <th class="p-2 col-time text-center">সময়</th>
+                                    <th class="p-2 col-status text-center">অবস্থান</th> 
+                                    <th class="p-2 col-unit text-center">ইউনিট</th> 
+                                    <th class="p-2 no-print w-12 text-center">অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rosterTableBody"></tbody>
+                        </table>
+                    </div>
+                    <button onclick="window.print()" class="w-full mt-10 bg-blue-500 text-white p-4 rounded-xl font-bold text-xl no-print">🖨️ Print</button>
+                </div>
+            </div>
+
+            <div id="master-page" class="hidden">
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-4">👨‍⚕️ DATABASE & ALL DOCTOR SHEET</h2>
+                    <div class="bg-emerald-50 p-4 rounded-lg mb-8 border border-emerald-200">
+                        <h3 class="font-bold mb-4 text-emerald-800 text-lg">➕ Add New Doctor</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <input type="hidden" id="editDocId">
+                            <input type="text" id="mName" placeholder="নাম" class="p-3 border rounded-lg md:col-span-2">
+                            <input type="text" id="mDegree" placeholder="ডিগ্রি" class="p-3 border rounded-lg">
+                            <input type="text" id="mDept" placeholder="বিভাগ" class="p-3 border rounded-lg">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="mDefRoom" placeholder="ডিফল্ট রুম" class="p-3 border rounded-lg">
+                            <input type="text" id="mDefTime" placeholder="ডিফল্ট সময়" class="p-3 border rounded-lg">
+                            <select id="mUnit" class="p-3 border rounded-lg font-bold">
+                                <option value="Unit-1">Unit-1</option>
+                                <option value="Unit-2">Unit-2</option>
+                            </select>
+                            <button id="masterSaveBtn" class="bg-[#004d40] text-white p-3 rounded-lg font-bold md:col-span-3">Save</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="p-3 border text-center w-12">নং</th>
+                                    <th class="p-3 border text-left">ডাক্তারের নাম</th>
+                                    <th class="p-3 border text-left">বিভাগ</th>
+                                    <th class="p-3 border text-center">ইউনিট</th>
+                                    <th class="p-3 border text-center">রুম</th>
+                                    <th class="p-3 border text-center">সময়</th>
+                                    <th class="p-3 border text-center w-32">অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="masterTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCF1SLO9vMb4mfdB73UL2ldTFIw_vPijxs",
+            authDomain: "hospital-roster-652bf.firebaseapp.com",
+            databaseURL: "https://hospital-roster-652bf-default-rtdb.firebaseio.com",
+            projectId: "hospital-roster-652bf",
+            storageBucket: "hospital-roster-652bf.firebasestorage.app",
+            messagingSenderId: "391223358576",
+            appId: "1:391223358576:web:7958081fac55389fc970b5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        let userUID = null;
+        let masterDoctors = [];
+        let rosterData = {};
+        let currentDay = '';
+        let selectedDoctorId = null;
+        let isLoginMode = true; // New Mode variable
+        const dayNamesBN = {"Saturday":"শনিবার", "Sunday":"রবিবার", "Monday":"সোমবার", "Tuesday":"মঙ্গলবার", "Wednesday":"বুধবার", "Thursday":"বৃহস্পতিবার", "Friday":"শুক্রবার"};
+
+        // --- AUTH LOGIC UPDATED ---
+        document.getElementById('toggleAuth').onclick = () => {
+            isLoginMode = !isLoginMode;
+            document.getElementById('authTitle').innerText = isLoginMode ? "🏥 Roster Login" : "🏥 Create Account";
+            document.getElementById('authBtn').innerText = isLoginMode ? "Login" : "Register Now";
+            document.getElementById('authSwitchText').innerHTML = isLoginMode ? 
+                'নতুন অ্যাকাউন্ট খুলতে চান? <button id="toggleAuth" class="text-emerald-700 font-bold hover:underline">Register করুন</button>' : 
+                'আগের অ্যাকাউন্ট আছে? <button id="toggleAuth" class="text-emerald-700 font-bold hover:underline">Login করুন</button>';
+            
+            // Re-bind the click event to the new button
+            document.getElementById('toggleAuth').onclick = document.getElementById('toggleAuth').onclick;
+        };
+
+        document.getElementById('authBtn').onclick = () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value.trim();
+            const errorEl = document.getElementById('loginError');
+
+            if(!email || !pass){
+
+Swal.fire({
+icon:'warning',
+title:'অসম্পূর্ণ তথ্য',
+text:'অনুগ্রহ করে ইমেল এবং পাসওয়ার্ড দিন',
+confirmButtonColor:'#004d40'
+});
+
+return;
+}
+
+            if (isLoginMode) {
+                signInWithEmailAndPassword(auth, email, pass).catch((error) => {
+                    errorEl.innerText = "ভুল ইমেল বা পাসওয়ার্ড!";
+                    errorEl.classList.remove('hidden');
+                });
+            } else {
+                createUserWithEmailAndPassword(auth, email, pass).then((userCredential) => {
+                    const uid = userCredential.user.uid;
+                    set(ref(db, `users/${uid}`), {
+                        masterDoctors: [],
+                        rosterData: {},
+                        hospitalHeadline: "নতুন হাসপাতালের নাম"
+                    });
+                    Swal.fire({
+icon:'success',
+title:'সফল',
+text:'অ্যাকাউন্ট তৈরি হয়েছে!',
+confirmButtonColor:'#004d40'
+});
+                }).catch(error => {
+                    errorEl.innerText = error.code === 'auth/email-already-in-use' ? "এই ইমেলে অলরেডি অ্যাকাউন্ট আছে!" : "পাসওয়ার্ড অন্তত ৬ অক্ষরের দিন।";
+                    errorEl.classList.remove('hidden');
+                });
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                userUID = user.uid;
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('appContent').classList.remove('hidden');
+                initApp(); 
+            } else {
+                userUID = null;
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('appContent').classList.add('hidden');
+            }
+        });
+
+        function initApp() {
+            if(!userUID) return;
+            const userPath = `users/${userUID}`;
+
+            onValue(ref(db, `${userPath}/masterDoctors`), (snapshot) => {
+                masterDoctors = snapshot.val() || [];
+                renderMasterList();
+            });
+
+            onValue(ref(db, `${userPath}/rosterData`), (snapshot) => { 
+                rosterData = snapshot.val() || {}; 
+                renderRoster(); 
+            });
+
+            onValue(ref(db, `${userPath}/hospitalHeadline`), (snapshot) => {
+                const h = snapshot.val() || "হাসপাতালের নাম";
+                document.getElementById('hospitalHeadline').value = h;
+                document.getElementById('displayHeadline').innerText = h;
+            });
+        }
+
+        // --- APP LOGIC FUNCTIONS ---
+        window.switchPage = (page) => {
+            document.getElementById('roster-page').classList.toggle('hidden', page !== 'roster');
+            document.getElementById('master-page').classList.toggle('hidden', page !== 'master');
+        };
+
+        window.saveMasterDoctor = () => {
+            const idInput = document.getElementById('editDocId').value;
+            const name = document.getElementById('mName').value.trim();
+            const degree = document.getElementById('mDegree').value.trim();
+            const dept = document.getElementById('mDept').value.trim();
+            const unit = document.getElementById('mUnit').value;
+            const defRoom = document.getElementById('mDefRoom').value.trim();
+            const defTime = document.getElementById('mDefTime').value.trim();
+            
+            if(!name){
+
+Swal.fire({
+icon:'error',
+text:'অনুগ্রহ করে ডাক্তারের নাম লিখুন',
+confirmButtonColor:'#004d40'
+});
+
+return;
+}
+            
+            const docData = { 
+                id: idInput ? parseInt(idInput) : Date.now(), 
+                name, degree, dept, unit, defRoom, defTime 
+            };
+            
+            if(idInput) {
+                const index = masterDoctors.findIndex(d => d.id == idInput);
+                if(index > -1) masterDoctors[index] = docData;
+            } else { 
+                masterDoctors.push(docData); 
+            }
+            
+            set(ref(db, `users/${userUID}/masterDoctors`), masterDoctors);
+            resetMasterForm();
+        };
+
+        function resetMasterForm() {
+            ['editDocId', 'mName', 'mDegree', 'mDept', 'mDefRoom', 'mDefTime'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('masterSaveBtn').innerText = "সেভ করুন";
+        }
+
+        function renderMasterList() {
+            document.getElementById('masterTableBody').innerHTML = masterDoctors.map((d, index) => `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="p-3 border text-center font-bold text-gray-500">${index + 1}</td>
+                    <td class="p-3 border text-left">
+                        <span class="font-bold text-lg text-emerald-900">${d.name}</span><br>
+                        <span class="text-xs text-black-600 font-semibold">${d.degree || ''}</span>
+                    </td>
+                    <td class="p-3 border font-bold text-gray-700">${d.dept}</td>
+                    <td class="p-3 border text-center"><span class="bg-gray-200 px-2 py-1 rounded text-sm font-bold">${d.unit}</span></td>
+                    <td class="p-3 border text-center font-bold text-emerald-700">${d.defRoom || '-'}</td>
+                    <td class="p-3 border text-center font-bold text-emerald-700">${d.defTime || '-'}</td>
+                    <td class="p-3 border text-center">
+                        <button onclick="window.editMaster(${d.id})" class="text-blue-600 font-bold hover:underline mr-3">Edit</button>
+                        <button onclick="window.deleteMaster(${d.id})" class="text-red-500 font-bold hover:underline">Del</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.editMaster = (id) => {
+            const d = masterDoctors.find(doc => doc.id == id);
+            document.getElementById('editDocId').value = d.id;
+            document.getElementById('mName').value = d.name;
+            document.getElementById('mDegree').value = d.degree;
+            document.getElementById('mDept').value = d.dept;
+            document.getElementById('mUnit').value = d.unit;
+            document.getElementById('mDefRoom').value = d.defRoom || '';
+            document.getElementById('mDefTime').value = d.defTime || '';
+            document.getElementById('masterSaveBtn').innerText = "Update";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.deleteMaster = (id)=>{
+
+Swal.fire({
+title:'আপনি কি নিশ্চিত?',
+text:'এটি ডিলিট করলে আর ফেরত পাওয়া যাবে না!',
+icon:'warning',
+showCancelButton:true,
+confirmButtonColor:'#d33',
+cancelButtonColor:'#3085d6',
+confirmButtonText:'হ্যাঁ, ডিলিট করুন',
+cancelButtonText:'না'
+}).then((result)=>{
+
+if(result.isConfirmed){
+
+set(
+ref(db,`users/${userUID}/masterDoctors`),
+masterDoctors.filter(d=>d.id!=id)
+);
+
+Swal.fire(
+'ডিলিট হয়েছে!',
+'ডাক্তারের তথ্য মুছে ফেলা হয়েছে',
+'success'
+);
+
+}
+
+});
+
+};
+
+        window.addToRoster = () => {
+            const nameVal = document.getElementById('doctorSearchInput').value.trim();
+            const doctor = masterDoctors.find(d => d.name === nameVal) || masterDoctors.find(d => d.id === selectedDoctorId);
+            if(!doctor){
+
+Swal.fire({
+icon:'error',
+text:'অনুগ্রহ করে ডাক্তার নির্বাচন করুন',
+confirmButtonColor:'#004d40'
+});
+
+return;
+}
+            if(!rosterData[currentDay]) rosterData[currentDay] = [];
+            if(rosterData[currentDay].some(r => r.docId === doctor.id)){
+
+Swal.fire({
+icon:'info',
+text:'এই ডাক্তার ইতিমধ্যে তালিকায় আছেন',
+confirmButtonColor:'#004d40'
+});
+
+return;
+}
+
+            const time = document.getElementById('dutyTime').value.trim();
+            const room = document.getElementById('dutyRoom').value.trim();
+            
+            rosterData[currentDay].push({ 
+                id: Date.now(), docId: doctor.id, 
+                time: time || doctor.defTime || '', 
+                room: room || doctor.defRoom || '', 
+                status: 'YES' 
+            });
+            
+            set(ref(db, `users/${userUID}/rosterData`), rosterData);
+            ['doctorSearchInput', 'dutyTime', 'dutyRoom'].forEach(id => document.getElementById(id).value = '');
+            selectedDoctorId = null;
+        };
+
+        window.updateRosterInline = (id, field, value) => {
+            const item = rosterData[currentDay].find(r => r.id === id);
+            if(item) { item[field] = value; set(ref(db, `users/${userUID}/rosterData`), rosterData); }
+        };
+
+        function renderRoster() {
+            const tbody = document.getElementById('rosterTableBody');
+            const table = document.getElementById('rosterTable');
+            const list = rosterData[currentDay] || [];
+            table.classList.remove('shrink-text', 'shrink-text-more');
+            if(list.length > 27) table.classList.add('shrink-text-more');
+            else if(list.length > 20) table.classList.add('shrink-text');
+
+            if(list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-gray-400">তালিকা খালি।</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map((r, index) => {
+                const doc = masterDoctors.find(d => d.id === r.docId);
+                if(!doc) return '';
+                let statusClass = r.status === 'YES' ? 'status-yes' : (r.status === 'NO' ? 'status-no' : 'status-pending');
+                return `
+                    <tr class="border-b border-gray-400">
+                        <td class="p-1 text-center font-bold">${index + 1}</td>
+                        <td class="p-1 text-left">
+                            <span class="font-bold text-lg leading-none">${doc.name}</span><br>
+                            <span class="text-[10px] font-semibold text-black-700 leading-tight">${doc.degree || ''}</span>
+                            <div class="no-print mt-1 flex gap-1">
+                                <button onclick="window.moveItem(${index}, -1)" class="bg-gray-200 px-1 rounded hover:bg-gray-300">🔼</button>
+                                <button onclick="window.moveItem(${index}, 1)" class="bg-gray-200 px-1 rounded hover:bg-gray-300">🔽</button>
+                            </div>
+                        </td>
+                        <td class="p-1 text-center roster-cell-text">${doc.dept}</td>
+                        <td class="p-1 text-center"><input type="text" value="${r.room || ''}" onchange="window.updateRosterInline(${r.id}, 'room', this.value)" class="editable-input roster-cell-text"></td>
+                        <td class="p-1 text-center"><input type="text" value="${r.time || ''}" onchange="window.updateRosterInline(${r.id}, 'time', this.value)" class="editable-input roster-cell-text"></td>
+                        <td class="p-1 text-center">
+                            <button onclick="window.cycleStatus(${r.id})" class="px-2 py-0.5 rounded font-bold no-print ${statusClass}">${r.status}</button>
+                            <span class="hidden print:block font-bold text-lg">${r.status === 'PENDING' ? '' : r.status}</span>
+                        </td>
+                        <td class="p-1 text-center roster-cell-text">${doc.unit}</td> 
+                        <td class="p-1 text-center no-print"><button onclick="window.deleteRosterItem(${r.id})" class="text-red-500 font-bold">✖</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.cycleStatus = (id) => {
+            const item = rosterData[currentDay].find(r => r.id === id);
+            item.status = item.status === 'YES' ? 'NO' : (item.status === 'NO' ? 'PENDING' : 'YES');
+            set(ref(db, `users/${userUID}/rosterData`), rosterData);
+        };
+
+        window.deleteRosterItem = (id) => { rosterData[currentDay] = rosterData[currentDay].filter(r => r.id !== id); set(ref(db, `users/${userUID}/rosterData`), rosterData); };
+
+        window.moveItem = (index, direction) => {
+            const list = rosterData[currentDay];
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < list.length) {
+                [list[index], list[newIndex]] = [list[newIndex], list[index]];
+                set(ref(db, `users/${userUID}/rosterData`), rosterData);
+            }
+        };
+
+        window.changeDay = (day) => {
+            currentDay = day;
+            document.querySelectorAll('#dayTabs button').forEach(btn => btn.classList.remove('active-tab'));
+            const targetTab = document.getElementById(`tab-${currentDay}`);
+            if(targetTab) targetTab.classList.add('active-tab');
+            renderRoster();
+            document.getElementById('displayDayBN').innerText = dayNamesBN[day];
+        };
+
+        document.getElementById('exportBtn').onclick = () => {
+            const backup = { masterDoctors, rosterData, hospitalHeadline: document.getElementById('hospitalHeadline').value };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `roster_backup_${new Date().toLocaleDateString()}.json`;
+            a.click();
+        };
+
+        document.getElementById('importFile').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    Swal.fire({
+title:'আপনি কি নিশ্চিত?',
+text:'বর্তমান সব ডাটা রিপ্লেস হবে!',
+icon:'warning',
+showCancelButton:true,
+confirmButtonText:'Yes',
+cancelButtonText:'No',
+confirmButtonColor:'#d33'
+}).then((result)=>{
+
+if(result.isConfirmed){
+
+if (data.masterDoctors) set(ref(db, `users/${userUID}/masterDoctors`), data.masterDoctors);
+if (data.rosterData) set(ref(db, `users/${userUID}/rosterData`), data.rosterData);
+if (data.hospitalHeadline) set(ref(db, `users/${userUID}/hospitalHeadline`), data.hospitalHeadline);
+
+Swal.fire('সফল','ডাটা আপডেট হয়েছে','success');
+
+}
+
+}); {
+                        if (data.masterDoctors) set(ref(db, `users/${userUID}/masterDoctors`), data.masterDoctors);
+                        if (data.rosterData) set(ref(db, `users/${userUID}/rosterData`), data.rosterData);
+                        if (data.hospitalHeadline) set(ref(db, `users/${userUID}/hospitalHeadline`), data.hospitalHeadline);
+                    }
+                } catch (err) { alert("ভুল ফাইল!"); }
+            };
+            reader.readAsText(file);
+        };
+
+        const searchInput = document.getElementById('doctorSearchInput');
+        const suggestionList = document.getElementById('customSuggestionList');
+        searchInput.oninput = function() {
+            const val = this.value.toLowerCase();
+            suggestionList.innerHTML = '';
+            if (!val) { suggestionList.style.display = 'none'; return; }
+            const matches = masterDoctors.filter(d => d.name.toLowerCase().includes(val) || d.dept.toLowerCase().includes(val));
+            matches.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `${d.name} <span class="text-xs text-gray-500">(${d.dept})</span>`;
+                div.onclick = () => {
+                    searchInput.value = d.name;
+                    selectedDoctorId = d.id;
+                    document.getElementById('dutyRoom').value = d.defRoom || '';
+                    document.getElementById('dutyTime').value = d.defTime || '';
+                    suggestionList.style.display = 'none';
+                };
+                suggestionList.appendChild(div);
+            });
+            suggestionList.style.display = matches.length ? 'block' : 'none';
+        };
+
+        document.getElementById('rosterDate').oninput = (e) => {
+            const selectedDate = new Date(e.target.value);
+            document.getElementById('displayDateBN').innerText = selectedDate.toLocaleDateString('bn-BD', {day:'numeric', month:'long', year:'numeric'});
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            window.changeDay(days[selectedDate.getDay()]);
+        };
+
+        document.getElementById('masterSaveBtn').onclick = window.saveMasterDoctor;
+        document.getElementById('addRosterBtn').onclick = window.addToRoster;
+        document.getElementById('hospitalHeadline').oninput = (e) => set(ref(db, `users/${userUID}/hospitalHeadline`), e.target.value);
+
+        window.onload = () => {
+            document.getElementById('dayTabs').innerHTML = Object.keys(dayNamesBN).map(day => `
+                <button onclick="window.changeDay('${day}')" id="tab-${day}" class="day-tab-btn border-2 text-gray-700 font-bold">${dayNamesBN[day]}</button>
+            `).join('');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('rosterDate').value = tomorrow.toISOString().split('T')[0];
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            window.changeDay(days[tomorrow.getDay()]);
+            document.getElementById('displayDateBN').innerText = tomorrow.toLocaleDateString('bn-BD', {day:'numeric', month:'long', year:'numeric'});
+        };
+
+    </script>
+</body>
+</html>
